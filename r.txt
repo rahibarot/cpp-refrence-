@@ -12,9 +12,10 @@
 /* This program is used in taking matrix report, seprate the         */
 /* lables of the numeric data and the numeric data then putting      */
 /* them toghter with a tab seprator so it can be process in excel    */
-/* spreadsheets beside that, it puts 'Total updates made to PDB'      */
+/* spreadsheets beside that, it puts 'Total updates made to PDB'     */
 /* and 'Program Library Updates' data lines above all other          */
-/* data lines                                                        */
+/* data lines, it Creates and submits JCL to Email excel doc         */ 
+/* members to LSA Sharepoint.                              	     */
 /*                                                                   */
 /*-------------------------------------------------------------------*/
 /* STANDARD TRACE SECTION                                            */
@@ -120,6 +121,7 @@ QUEUE '//SYSUT1   DD *                                              '
 QUEUE 'HELO IMF1S                                                   '
 QUEUE 'MAIL FROM:<LSA_SUPPORT@bankofamerica.com>                    '
 QUEUE 'RCPT TO:<LSA_SUPPORT@bankofamerica.com>                      '
+QUEUE 'RCPT TO:<'smtp_id'>                                          '
 QUEUE 'DATA                                                         '
 QUEUE 'FROM:     LSA_SUPPORT@bankofamerica.com                      '
 QUEUE 'TO:       LSA_SUPPORT@bankofamerica.com                      '
