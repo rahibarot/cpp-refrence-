@@ -1,1 +1,217 @@
+/*- REXX ------------------------------------------------------------*/
+/* Name:  MTRPTXL                                                    */
+/* Proc:  MTRPTXL                                                    */
+/* Desc:  this program reads lines from SYS3.SA.ROLL.EXEC(METRXRPT)  */
+/*           seprates names of metrix datas and their numeric values */
+/* File:  input:SYS3.SA.ROLL.EXEC(METRXRPT)                          */
+/*        output: sys3.sa.roll.matrix("mbrname")                     */
+/*      mbrname= "M" followed by month and year of the matrix report */
+/* Note: please see the last line when you execute for member name  */
+/* ------------------------------------------------------------------*/
+/*                                                                   */
+/* This program is used in taking matrix report, seprate the         */
+/* lables of the numeric data and the numeric data then putting      */
+/* them toghter with a tab seprator so it can be process in excel    */
+/* spreadsheets beside that, it puts 'Total updates made to PDB'      */
+/* and 'Program Library Updates' data lines above all other          */
+/* data lines                                                        */
+/*                                                                   */
+/*-------------------------------------------------------------------*/
+/* STANDARD TRACE SECTION                                            */
+/*-------------------------------------------------------------------*/
+/* REXX */
+/*ADDRESS NETVIEW /*remove comment lines after testting*/
+TRACE OFF
+SIGNAL ON SYNTAX NAME AOF_ERROR
+SIGNAL ON NOVALUE NAME AOF_ERROR
+SIGNAL ON FAILURE NAME AOF_ERROR
+SIGNAL ON HALT NAME AOF_ERROR
+PARSE SOURCE . . ident .
+"GLOBALV GETC aofdebug waittime aofgvchars",
+  "AOF."ident".0TRACE AOF."ident".0DEBUG",
+  "AOF."ident".0TRACE_COMMON"
+loc.              = ''
+loc.0me           = ident
+loc.0waittime     = waittime
+loc.0gv_chars     = aofgvchars
+loc.0domain       = DOMAIN()
+loc.0trace        = aof.ident.0trace
+loc.0debug        = 'N'
+loc.0trace_val    = 'OFF'
+loc.0trace_common = aof.ident.0trace_common
+loc.0flicense     = 1
+IF aofdebug = 'Y' THEN ,
+  "AOFMSG "ident",700,LOG,"TIME()","OPID()",'"ARG(1)"'"
+IF WORDPOS(aof.ident.0trace,'A R I C E F L O N') > 0 THEN ,
+DO
+  TRACE VALUE aof.ident.0trace
+  loc.0trace_val = aof.ident.0trace
+END
 
+SIGNAL OFF FAILURE
+SIGNAL OFF NOVALUE
+*/
+/*-------------------------------------------------------------------*/
+/* BOFA code goes here                                               */
+/*-------------------------------------------------------------------*/
+
+ADDRESS TSO
+"ALLOC F(INFILE) DSN('SYS3.SA.ROLL.EXEC(METRXRPT)') SHR REU"
+"EXECIO * DISKR INFILE ( FINIS STEM MYFILE."
+"FREE F(INFILE)"
+hdrline = 2
+DO i=0 TO myfile.0 /*data starts at line 3*/
+   line = myfile.i
+   #words = words(line)/*num of words in the line*/
+   IF POS('Report period',line)>0 THEN
+     mbrname = TRANSLATE(SPACE(SUBWORD(line,#words-1),0))
+   IF #words /= 0 &  i> hdrline THEN DO
+     numbers = word(line,#words) /*extract numbers*/
+     IF datatype(numbers) = 'NUM' THEN DO
+         filterstr = subword(line,1,#words-1)
+         /*remove numbers from original line */
+         newline = filterstr||'05'x||numbers||'05'x
+     END
+     ELSE newline =  line
+   END
+   ELSE newline = line
+   newline.i = newline
+   /*say newline   remove this comment after testing*/
+END
+outfile1 = "'sys3.sa.roll.matrix("mbrname")'"
+say 'member created: ' outfile1
+CALL MOVELINEIDX 3 'Total updates made to PDB'
+CALL MOVELINEIDX 4 'Program Library Updates'
+"alloc f(outfile) dsn("outfile1") shr reu"
+"execio * diskw outfile (stem newline. finis"
+"free f(outfile)"
+
+/*jcl code  to send email */
+dsn_ou1 = 'SYS3.SA.ROLL.MATRIX(EMAILJCL)'
+user_id = SYSVAR('SYSUID')
+job_nam = '//'user_id'R'
+job_cr1 = job_nam" JOB (NAON),'LSA',USER=TSAO,NOTIFY="user_id","
+job_cr2 = '// CLASS=0,MSGCLASS=U'
+SELECT
+  WHEN user_id = 'NBTQUO5' THEN e_mail = 'gary.todt'
+  WHEN user_id = 'NBTZVY6' THEN e_mail = 'roger.d.carter'
+  WHEN user_id = 'NBTA94X' THEN e_mail = 'daniel.wolters'
+  WHEN user_id = 'ZKNKUTU' THEN e_mail = 'frantz.olivier'
+  WHEN user_id = 'NBTNZR1' THEN e_mail = 'kerry.bevel'
+  WHEN user_id = 'ZKPMRBS' THEN e_mail = 'hugh.dawson'
+  WHEN user_id = 'NBTSTS9' THEN e_mail = 'vicki.waddell'
+  WHEN user_id = 'ZK8W2M6' THEN e_mail = 'rahi.barot'
+  OTHERWISE SAY 'Submitter email address not found'
+END
+
+smtp_id = e_mail'@bofa.com'
+QUEUE job_cr1
+QUEUE job_cr2
+QUEUE '//*---------------------------------------------------------*'
+QUEUE '//* SEND MESSAGE TO SHAREPOINT                              *'
+QUEUE '//*---------------------------------------------------------*'
+QUEUE '//EMAIL1 EXEC PGM=IEBGENER                                   '
+QUEUE '//SYSIN    DD DUMMY                                          '
+QUEUE '//SYSUT2   DD SYSOUT=(B,SMTP),                               '
+QUEUE '// DCB=(DSORG=PS,RECFM=VBA,LRECL=240,BLKSIZE=27998)          '
+QUEUE '//SYSOUT   DD SYSOUT=*                                       '
+QUEUE '//SYSPRINT DD SYSOUT=*                                       '
+QUEUE '//SYSUT1   DD *                                              '
+QUEUE 'HELO IMF1S                                                   '
+QUEUE 'MAIL FROM:<LSA_SUPPORT@bankofamerica.com>                    '
+QUEUE 'RCPT TO:<LSA_SUPPORT@bankofamerica.com>                      '
+QUEUE 'DATA                                                         '
+QUEUE 'FROM:     LSA_SUPPORT@bankofamerica.com                      '
+QUEUE 'TO:       LSA_SUPPORT@bankofamerica.com                      '
+QUEUE 'CC:       'smtp_id'                                          '
+QUEUE 'SUBJECT: Metrics Excel Document                              '
+QUEUE 'MIME-VERSION: 1.0                                            '
+QUEUE 'CONTENT-TYPE: MULTIPART/MIXED; BOUNDARY="SIMPLE BOUNDARY"    '
+QUEUE '                                                             '
+QUEUE '--SIMPLE BOUNDARY                                            '
+QUEUE 'Content-Type: application/vnd.ms-excel                       '
+QUEUE 'CONTENT-DISPOSITION: ATTACHMENT; FILENAME='mbrname'.XLS      '
+QUEUE '                                                             '
+QUEUE '//       DD DSN=SYS3.SA.ROLL.MATRIX('mbrname'),DISP=SHR      '
+QUEUE '//       DD DSN=SYS3.SA.ROLL.EXEC(EMAILPD),DISP=SHR          '
+QUEUE '//*                                                          '
+
+say 'member to submit: ' dsn_ou1'in tso'
+"ALLOC DA('"dsn_ou1"') F(DSNOU1) SHR REU"
+"EXECIO "queued()" DISKW DSNOU1 (FINIS"
+IF rc <> 0 THEN SAY 'EXECIO DISKW DSNOU1 rc='rc
+"FREE F(DSNOU1)"
+
+"SUBMIT '"dsn_ou1"'"
+EXIT /*exit tso*/
+
+MOVELINEIDX:
+PARSE ARG linenum text2srch
+  DO j=1 TO newline.0
+   /*say newline.j */
+    currline = newline.j
+    IF POS(text2srch,currline) > 0 THEN DO  /* found text to move 8 */
+      IF linenum < j THEN DO /*3 < 8 moving to line above current */
+        prevline = newline.linenum /* saving line 4 */
+        nextline# = linenum + 1 /* a = 4 */
+        saved_nextline = newline.nextline# /* saving line 4 */
+        DO k = nextline# TO j /* 4 to 8*/
+          newline.k = prevline /* copy curr to next line */
+          prevline = saved_nextline
+          nextline# = nextline# + 1 /* now a = 5 */
+          saved_nextline = newline.nextline#
+          IF nextline# > j THEN DO
+             newline.linenum = prevline
+             LEAVE
+             trace o
+          END /* End IF */
+        END k /* End DO */
+      END /* End IF */
+    END /* End IF POS */
+  END j /* End J */
+RETURN
+
+/*-------------------------------------------------------------------*/
+/* STANDARD TRAP SECTION                                             */
+/*-------------------------------------------------------------------*/
+AOF_ERROR:
+  SIGNAL OFF SYNTAX
+  SIGNAL OFF FAILURE
+  SIGNAL OFF HALT
+  SIGNAL OFF NOVALUE
+  cond = CONDITION('C')
+  desc = STRIP(LEFT(CONDITION('D'),150))
+  IF cond = 'NOVALUE' | cond = 'HALT' THEN rc = 'N/A'
+  SELECT
+    WHEN cond = 'HALT' THEN desc = 'CLIST HALTED'
+    WHEN cond = 'SYNTAX' THEN desc = ERRORTEXT(rc)
+    WHEN cond = 'FAILURE' THEN ,
+    DO
+      IF rc = -1 THEN desc = 'COMMAND NOT FOUND'
+      IF rc = -3 THEN desc = 'COMMAND NOT PERMITTED'
+    END
+    OTHERWISE NOP
+  END
+  "AOFMSG "cond",760,LOG,"loc.0me","sigl","rc",'"desc"'"
+  CALL AOF_EXIT -5
+EXIT -5
+/* */
+AOF_SILENT_ERROR:
+  CALL AOF_EXIT 0
+EXIT 0
+/* */
+AOF_EXIT:
+  PROCEDURE EXPOSE loc.
+  DO ix = 1 TO WORDS(loc.0claim_tickets)
+    ticket = WORD(loc.0claim_tickets,ix)
+    CALL INGPXDEL ticket
+  END
+  IF loc.0userexit = 'Y' THEN CALL @USER_EXIT lrc = ARG(1)
+  lrc = ARG(1)
+  IF DATATYPE(lrc,'W') ¬= 1 THEN lrc = 0
+  IF loc.0debug = 'Y' THEN ,
+  DO
+    debugtext = 'COMPLETE, RC='||lrc||'.'
+    CALL AOF_DEBUG degugtext
+  END
+EXIT lrc
