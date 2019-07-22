@@ -14,8 +14,8 @@
 /* them toghter with a tab seprator so it can be process in excel    */
 /* spreadsheets beside that, it puts 'Total updates made to PDB'     */
 /* and 'Program Library Updates' data lines above all other          */
-/* data lines, it Creates and submits JCL to Email excel doc         */ 
-/* members to LSA Sharepoint.                              	     */
+/* data lines, it Creates and submits JCL to Email excel doc         */
+/* members to LSA Sharepoint.                                        */
 /*                                                                   */
 /*-------------------------------------------------------------------*/
 /* STANDARD TRACE SECTION                                            */
@@ -80,7 +80,6 @@ DO i=0 TO myfile.0 /*data starts at line 3*/
    /*say newline   remove this comment after testing*/
 END
 outfile1 = "'sys3.sa.roll.matrix("mbrname")'"
-say 'member created: ' outfile1
 CALL MOVELINEIDX 3 'Total updates made to PDB'
 CALL MOVELINEIDX 4 'Program Library Updates'
 "alloc f(outfile) dsn("outfile1") shr reu"
@@ -125,7 +124,7 @@ QUEUE 'RCPT TO:<'smtp_id'>                                          '
 QUEUE 'DATA                                                         '
 QUEUE 'FROM:     LSA_SUPPORT@bankofamerica.com                      '
 QUEUE 'TO:       LSA_SUPPORT@bankofamerica.com                      '
-QUEUE 'CC:       'smtp_id'                                          '
+QUEUE 'CC:      <'smtp_id'>                                         '
 QUEUE 'SUBJECT: Metrics Excel Document                              '
 QUEUE 'MIME-VERSION: 1.0                                            '
 QUEUE 'CONTENT-TYPE: MULTIPART/MIXED; BOUNDARY="SIMPLE BOUNDARY"    '
@@ -138,13 +137,14 @@ QUEUE '//       DD DSN=SYS3.SA.ROLL.MATRIX('mbrname'),DISP=SHR      '
 QUEUE '//       DD DSN=SYS3.SA.ROLL.EXEC(EMAILPD),DISP=SHR          '
 QUEUE '//*                                                          '
 
-say 'member to submit: ' dsn_ou1'in tso'
+say 'Please Check Your Email,' e_mail '!!'
+say 'A Backup of report is in:' outfile1
 "ALLOC DA('"dsn_ou1"') F(DSNOU1) SHR REU"
 "EXECIO "queued()" DISKW DSNOU1 (FINIS"
 IF rc <> 0 THEN SAY 'EXECIO DISKW DSNOU1 rc='rc
 "FREE F(DSNOU1)"
 
-"SUBMIT '"dsn_ou1"'"
+"SUBMIT '"dsn_ou1"'" /* submit jcl job*/
 EXIT /*exit tso*/
 
 MOVELINEIDX:
