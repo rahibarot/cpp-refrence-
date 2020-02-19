@@ -26,7 +26,7 @@ double Ackermann(double m, double n)
 int main()
 {
     double result1;
-    result1 = Ackermann(3,4);
-    cout << "Ackermann(3,4) = " << result1 << endl;
+    result1 = Ackermann(1,2);   //please change (m,n) to get desired Ackermann number
+    cout << "Ackermann(1,2) = " << result1 << endl;
     return 0;
 }
